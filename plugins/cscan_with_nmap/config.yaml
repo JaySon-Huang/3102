@@ -1,0 +1,7 @@
+enable: True
+onerepeat: true
+input: ['ip', 'domain']
+output: ['ip']
+descript: 通过nmap扫描提供的ip地址/域名所在C段存活主机
+name: cscan_with_nmap
+chinesename: C段扫描(利用nmap)
