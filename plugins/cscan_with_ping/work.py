@@ -19,9 +19,11 @@ class cscan_with_ping(Plugin):
         super(cscan_with_ping, self).__init__('cscan_with_ping')
         self.wp = WorkerPool()
 
+        # 第一次init才需要测试权限
         if cscan_with_ping.has_root_privilege is not None:
             return
 
+        # 测试是否有权限创建RAW socket
         try:
             socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname("icmp"))
         except socket.error:
@@ -72,6 +74,7 @@ class cscan_with_ping(Plugin):
             # TODO: 发送失败，重发处理?
             return
 
+        # FIXME: 协程导致的现象是否可以改进?
         recv_time = receive_one(sock, identifier, seq)
         sock.close()
         if recv_time is not None:
