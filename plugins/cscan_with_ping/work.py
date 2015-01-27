@@ -5,15 +5,34 @@ from core.plugin import Plugin
 from comm.coroutine import WorkerPool
 
 import os
+import sys
 import socket
 
 from .helper import resolve_hostname, get_c_class_ips
 from .helper import send_one, receive_one
 
 class cscan_with_ping(Plugin):
+    
+    has_root_privilege = None
+
     def __init__(self):
         super(cscan_with_ping, self).__init__('cscan_with_ping')
         self.wp = WorkerPool()
+
+        if cscan_with_ping.has_root_privilege is not None:
+            return
+
+        try:
+            socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname("icmp"))
+        except socket.error:
+            cscan_with_ping.has_root_privilege = False
+            self.logger.exception(
+                'Create RAW socket FAILED!\n'
+                'Note that plugin cscan_with_ping need root privilege.'
+            )
+        else:
+            self.has_root_privilege = True
+            
 
     def start(self, domain, domain_type, level):
         super(cscan_with_ping, self).start(domain, domain_type, level)
@@ -23,6 +42,10 @@ class cscan_with_ping(Plugin):
             'ip': [],
             'domain': [],
         }
+
+        if not cscan_with_ping.has_root_privilege:
+            super(cscan_with_ping, self).end()
+            return self.result
 
         try:
             iplist = resolve_hostname(domain)
@@ -42,14 +65,15 @@ class cscan_with_ping(Plugin):
 
     def __scan_one(self, ip, seq):
         identifier = (os.getpid()) & 0xffff
+        
         try:
             sock,sent_time = send_one(ip, identifier, seq)
-            recv_time = receive_one(sock, identifier, seq)
-            sock.close()
-            if recv_time is not None:
-                delay = (recv_time-sent_time)*1000
-                self.result['ip'].append(ip)
-                
         except socket.error:
-            # TODO: 发送包文出错
-            pass
+            # TODO: 发送失败，重发处理?
+            return
+
+        recv_time = receive_one(sock, identifier, seq)
+        sock.close()
+        if recv_time is not None:
+            delay = (recv_time-sent_time)*1000
+            self.result['ip'].append(ip)
