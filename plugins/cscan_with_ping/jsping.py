@@ -35,13 +35,15 @@ logging.basicConfig(
 )
 
 class JSPing(object):
-    MAX_SLEEP = 1000
+    MAX_SLEEP = 0
 
     def __init__(self, count=4, numDataBytes=56, timeout=3000):
         self.useIPv6 = False
         self.count = count
         self.timeout = timeout
         self.numDataBytes = numDataBytes
+
+        self.verbose = False
 
     def reset(self):
         self.seq_num = 0
@@ -52,13 +54,11 @@ class JSPing(object):
         self.minTime = None
 
     def __exit_handler(self, signum, frame):
-        if self.recall:
-            self.recall()
         if self.verbose:
-            self.dump_stats()
+            self.__dump_stats()
         sys.exit(-1)
 
-    def dump_stats(self):
+    def __dump_stats(self):
         logging.info(
             '\n--- %s ping statistics ---\n'
             '%d packets transmitted, %d packets received, %.1f%% packet loss'%
@@ -78,14 +78,13 @@ class JSPing(object):
 
         self.hostname = hostname
         self.verbose = verbose
-        self.recall = recall
 
         signal.signal(signal.SIGINT, self.__exit_handler)   # Handle Ctrl-C
         if hasattr(signal, "SIGBREAK"):
             # Handle Ctrl-Break e.g. under Windows
             signal.signal(signal.SIGBREAK, self.__exit_handler)
 
-        destIP = self.__resolve_address(hostname)
+        destIP = self.resolve_address(hostname)
 
         identifier = (os.getpid()) & 0xffff
         for i in range(self.count):
@@ -118,6 +117,7 @@ class JSPing(object):
                     self.minTime = min(self.minTime, delay)
 
             else:
+                delay = 0
                 if self.verbose:
                     logging.info(
                         'Request timeout for icmp_seq %d' % i
@@ -126,15 +126,12 @@ class JSPing(object):
             if self.MAX_SLEEP > delay:
                 time.sleep( (self.MAX_SLEEP - delay)/1000 )
 
-        # 调用回调函数
-        if self.recall:
-            self.recall()
         if self.verbose:
-            self.dump_stats()
+            self.__dump_stats()
 
         return self.pktsRcvd != 0
 
-    def __resolve_address(self, hostname):
+    def resolve_address(self, hostname):
         if self.useIPv6:
             try:
                 # 使用`getaddrinfo`可以支持IPv4/IPv6
@@ -308,12 +305,24 @@ class JSPing(object):
         timeLeft = timeLeft - howLongInSelect
         if timeLeft <= 0:
             return None, 0, 0, 0, 0
+    
+def get_c_class_ips(ip):
+    pre = ip[:ip.rfind('.')+1]
+    ips = [pre + str(_) for _ in range(1,255)]
+    return ips
+
+def cscan(ping, target):
+    ips = get_c_class_ips(ping.resolve_address(target))
+    for ip in ips:
+        ping.execute(ip)
 
 if __name__ == '__main__':
-    ping = JSPing()
+    ping = JSPing(count=1)
     if len(sys.argv) == 1:
-        ping.execute('114.114.114.114')
-        ping.execute('www.baidu.com')
+        # cscan(ping, '114.114.114.114')
+        cscan(ping, 'www.baidu.com')
+        cscan(ping, 'www.google.com')
+
     elif len(sys.argv) == 2:
         ping.execute(sys.argv[1])
     else:
