@@ -1,0 +1,7 @@
+enable: True
+onerepeat: True
+input: ['ip','domain']
+output: ['ip']
+descript: 通过对指定ip/域名同一C段ip地址进行ping检测
+name: cscan_with_ping
+chinesename: C段扫描

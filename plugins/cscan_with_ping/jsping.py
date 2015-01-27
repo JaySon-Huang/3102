@@ -72,7 +72,7 @@ class JSPing(object):
                  (self.minTime, self.totTime/self.pktsRcvd, self.maxTime)
             )
 
-    def execute(self, hostname, verbose=True):
+    def execute(self, hostname, verbose=True, auto_resolve=True):
         # 重置统计信息
         self.reset()
 
@@ -84,7 +84,10 @@ class JSPing(object):
             # Handle Ctrl-Break e.g. under Windows
             signal.signal(signal.SIGBREAK, self.__exit_handler)
 
-        destIP = self.resolve_address(hostname)
+        if auto_resolve:
+            destIP = self.resolve_address(hostname)
+        else:
+            destIP = hostname
 
         identifier = (os.getpid()) & 0xffff
         for i in range(self.count):
@@ -273,11 +276,11 @@ class JSPing(object):
     def __receive_one(self, s, identifier):
         startedSelect = timer()
         whatReady = select.select([s], [], [], self.timeout/1000)
-        howLongInSelect = (timer() - startedSelect)
+        timeReceived = timer()
+        howLongInSelect = (timeReceived - startedSelect)
         if whatReady[0] == []: # Timeout
             return None, 0, 0, 0, 0
 
-        timeReceived = timer()
 
         recPacket, addr = s.recvfrom(ICMP_MAX_RECV)
 
