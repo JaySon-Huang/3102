@@ -5,7 +5,6 @@ from core.plugin import Plugin
 from comm.coroutine import WorkerPool
 
 import os
-import sys
 import socket
 
 from .helper import resolve_hostname, get_c_class_ips
@@ -49,12 +48,15 @@ class cscan_with_ping(Plugin):
             super(cscan_with_ping, self).end()
             return self.result
 
-        try:
-            iplist = resolve_hostname(domain)
-        except socket.gaierror:
-            # 域名解析错误
-            super(cscan_with_ping, self).end()
-            return self.result
+        if domain_type == 'domain':
+            try:
+                iplist = resolve_hostname(domain)
+            except socket.gaierror:
+                # 域名解析错误
+                super(cscan_with_ping, self).end()
+                return self.result
+        elif domain_type == 'ip':
+            iplist = [domain]
 
         iplist = get_c_class_ips(iplist)
         for seq, ip in enumerate(iplist):
