@@ -33,7 +33,7 @@ class cscan_with_ping(Plugin):
                 'Note that plugin cscan_with_ping need root privilege.'
             )
         else:
-            self.has_root_privilege = True
+            cscan_with_ping.has_root_privilege = True
             
 
     def start(self, domain, domain_type, level):
